@@ -61,6 +61,7 @@ class Wpfaevent_Event_Template_Controller {
 	 * @param string $type     Partner type.
 	 * @param array  $partner  Partner array.
 	 * @return string
+	 * @phpstan-param array<string, mixed> $partner
 	 */
 	private static function get_partner_detail_url( $event_id, $type, $partner ) {
 		if ( is_callable( self::$partner_helper_provider ) ) {
@@ -77,6 +78,7 @@ class Wpfaevent_Event_Template_Controller {
 	 * @since 1.0.0
 	 * @param int $event_id Event ID.
 	 * @return array
+	 * @phpstan-return array<string, string>
 	 */
 	private static function get_event_colors( $event_id ) {
 		if ( is_callable( self::$meta_event_provider ) ) {
@@ -167,7 +169,26 @@ class Wpfaevent_Event_Template_Controller {
 				)
 			);
 
-			return $normalize_post_id_list( array_merge( $speaker_ids, $reverse_speaker_ids ) );
+			$linked_speaker_ids = $normalize_post_id_list( array_merge( $speaker_ids, $reverse_speaker_ids ) );
+
+			if ( empty( $linked_speaker_ids ) ) {
+				return array();
+			}
+
+			// The forward meta list is unfiltered, and templates skip anything not publicly viewable.
+			return $normalize_post_id_list(
+				get_posts(
+					array(
+						'post_type'      => 'wpfa_speaker',
+						'post_status'    => 'publish',
+						'post__in'       => $linked_speaker_ids,
+						'orderby'        => 'post__in',
+						'posts_per_page' => -1,
+						'fields'         => 'ids',
+						'no_found_rows'  => true,
+					)
+				)
+			);
 		};
 
 		$format_event_date = static function ( $date ) {
@@ -1001,6 +1022,22 @@ class Wpfaevent_Event_Template_Controller {
 			$custom_sections[ $custom_tab['slug'] ] = $custom_tab['title'];
 		}
 
+		// Dashboard rows without a displayable name render no card, so they are not speakers.
+		$renderable_dashboard_speakers = array_filter(
+			$dashboard_speakers,
+			static function ( $dashboard_speaker ) {
+				if ( ! is_array( $dashboard_speaker ) || ! isset( $dashboard_speaker['name'] ) || ! is_scalar( $dashboard_speaker['name'] ) ) {
+					return false;
+				}
+
+				// Match the card partial, which displays the sanitized name.
+				return '' !== sanitize_text_field( (string) $dashboard_speaker['name'] );
+			}
+		);
+
+		$has_speakers = $show_speakers && ( ! empty( $speaker_ids ) || ! empty( $renderable_dashboard_speakers ) );
+		$has_schedule = $show_schedule && ! empty( $schedule_items );
+
 		$wpfa_event_nav_context = array(
 			'show_about'      => $show_about,
 			'show_speakers'   => $show_speakers,
@@ -1009,8 +1046,8 @@ class Wpfaevent_Event_Template_Controller {
 			'show_exhibitors' => $show_exhibitors,
 			'has_about'       => $show_about && '' !== trim( $about_content ),
 			'has_tickets'     => $show_ticket_section,
-			'has_speakers'    => $show_speakers && ( ! empty( $speaker_ids ) || ! empty( $dashboard_speakers ) ),
-			'has_schedule'    => $show_schedule && ! empty( $schedule_items ),
+			'has_speakers'    => $has_speakers,
+			'has_schedule'    => $has_schedule,
 			'has_sponsors'    => $show_sponsors && ! empty( $visible_sponsor_groups ),
 			'has_exhibitors'  => $show_exhibitors && ! empty( $visible_exhibitors ),
 			'has_venue'       => '' !== trim( wp_strip_all_tags( $venue_information ) ),
@@ -1074,6 +1111,8 @@ class Wpfaevent_Event_Template_Controller {
 			'show_schedule'                            => $show_schedule,
 			'show_sponsors'                            => $show_sponsors,
 			'show_exhibitors'                          => $show_exhibitors,
+			'has_speakers'                             => $has_speakers,
+			'has_schedule'                             => $has_schedule,
 			'venue_information'                        => $venue_information,
 			'event_additional_url'                     => $event_additional_url,
 			'custom_tabs'                              => $custom_tabs,
@@ -1167,6 +1206,8 @@ class Wpfaevent_Event_Template_Controller {
 			'show_schedule'                            => false,
 			'show_sponsors'                            => false,
 			'show_exhibitors'                          => false,
+			'has_speakers'                             => false,
+			'has_schedule'                             => false,
 			'venue_information'                        => '',
 			'event_additional_url'                     => '',
 			'custom_tabs'                              => array(),
