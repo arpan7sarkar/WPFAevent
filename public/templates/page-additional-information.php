@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+$wpfaevent_is_embed = ! empty( $GLOBALS['wpfaevent_template_embed'] );
+
 if ( class_exists( 'Wpfaevent_Additional_Information_Helper' ) ) {
 	$page_data = Wpfaevent_Additional_Information_Helper::get_additional_information_page_data();
 } else {
@@ -29,6 +31,8 @@ if ( class_exists( 'Wpfaevent_Additional_Information_Helper' ) ) {
 		'selected_event_title'            => '',
 		'selected_event_url'              => '',
 		'venue_information'               => '',
+		'transportation_information'      => '',
+		'hotel_information'               => '',
 		'has_information'                 => false,
 		'additional_information_page_url' => get_permalink(),
 		'event_schedule_url'              => home_url( '/full-schedule/' ),
@@ -51,6 +55,8 @@ $selected_event_slug             = $page_data['selected_event_slug'];
 $selected_event_title            = $page_data['selected_event_title'];
 $selected_event_url              = $page_data['selected_event_url'];
 $venue_information               = $page_data['venue_information'];
+$transportation_information      = $page_data['transportation_information'];
+$hotel_information               = $page_data['hotel_information'];
 $has_information                 = $page_data['has_information'];
 $additional_information_page_url = $page_data['additional_information_page_url'];
 $event_schedule_url              = $page_data['event_schedule_url'];
@@ -58,6 +64,7 @@ $event_additional_url            = $page_data['event_additional_url'];
 $event_style_attr                = $page_data['event_style_attr'];
 $header_vars                     = $page_data['header_vars'];
 ?>
+<?php if ( ! $wpfaevent_is_embed ) : ?>
 <!DOCTYPE html>
 <html <?php language_attributes(); ?>>
 <head>
@@ -66,7 +73,7 @@ $header_vars                     = $page_data['header_vars'];
 	<?php wp_head(); ?>
 </head>
 <body <?php body_class( 'wpfaevent wpfa-event-template wpfa-additional-information-template' ); ?><?php echo $event_style_attr; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped when built. ?>>
-<?php wp_body_open(); ?>
+	<?php wp_body_open(); ?>
 
 <div id="page" class="site">
 	<?php
@@ -83,8 +90,13 @@ $header_vars                     = $page_data['header_vars'];
 		include $nav_partial;
 	}
 	?>
+<?php endif; ?>
 
+<?php if ( $wpfaevent_is_embed ) : ?>
+	<section class="wpfaevent wpfa-event-template wpfa-additional-information-template wpfa-additional-information"<?php echo $event_style_attr; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped when built. ?>>
+<?php else : ?>
 	<main class="wpfa-additional-information">
+<?php endif; ?>
 		<section class="wpfa-additional-information-hero">
 			<div class="container">
 				<p class="wpfa-event-kicker"><?php esc_html_e( 'Venue and travel', 'wpfaevent' ); ?></p>
@@ -125,8 +137,25 @@ $header_vars                     = $page_data['header_vars'];
 				</div>
 
 				<?php if ( $selected_event_id && $has_information ) : ?>
-					<div class="wpfa-event-rich-text wpfa-additional-information-body">
-						<?php echo wp_kses_post( wpautop( $venue_information ) ); ?>
+					<div class="wpfa-additional-information-body">
+						<?php if ( '' !== trim( wp_strip_all_tags( $venue_information ) ) ) : ?>
+							<div class="wpfa-additional-information-block">
+								<h3><?php esc_html_e( 'Venue', 'wpfaevent' ); ?></h3>
+								<div class="wpfa-event-rich-text"><?php echo wp_kses_post( wpautop( $venue_information ) ); ?></div>
+							</div>
+						<?php endif; ?>
+						<?php if ( '' !== trim( wp_strip_all_tags( $transportation_information ) ) ) : ?>
+							<div class="wpfa-additional-information-block">
+								<h3><?php esc_html_e( 'Transportation', 'wpfaevent' ); ?></h3>
+								<div class="wpfa-event-rich-text"><?php echo wp_kses_post( wpautop( $transportation_information ) ); ?></div>
+							</div>
+						<?php endif; ?>
+						<?php if ( '' !== trim( wp_strip_all_tags( $hotel_information ) ) ) : ?>
+							<div class="wpfa-additional-information-block">
+								<h3><?php esc_html_e( 'Hotel & Accommodation', 'wpfaevent' ); ?></h3>
+								<div class="wpfa-event-rich-text"><?php echo wp_kses_post( wpautop( $hotel_information ) ); ?></div>
+							</div>
+						<?php endif; ?>
 					</div>
 				<?php elseif ( $selected_event_id ) : ?>
 					<p class="wpfa-empty-state"><?php esc_html_e( 'No additional information has been added for this event yet.', 'wpfaevent' ); ?></p>
@@ -135,11 +164,15 @@ $header_vars                     = $page_data['header_vars'];
 				<?php endif; ?>
 			</div>
 		</section>
+<?php if ( $wpfaevent_is_embed ) : ?>
+	</section>
+<?php else : ?>
 	</main>
 
 	<?php require WPFAEVENT_PATH . 'public/partials/footer.php'; ?>
 </div>
 
-<?php wp_footer(); ?>
+	<?php wp_footer(); ?>
 </body>
 </html>
+<?php endif; ?>

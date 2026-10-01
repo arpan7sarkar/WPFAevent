@@ -54,6 +54,16 @@ class Wpfaevent_Admin_Event_Metabox {
 			);
 		}
 
+		// Event colors meta box.
+		add_meta_box(
+			'wpfa_event_colors_box',
+			__( 'Event Colors', 'wpfaevent' ),
+			array( $this, 'render_event_colors_meta_box' ),
+			'wpfa_event',
+			'normal',
+			'default'
+		);
+
 		// Event schedule meta box.
 		add_meta_box(
 			'wpfa_event_schedule_box',
@@ -79,6 +89,16 @@ class Wpfaevent_Admin_Event_Metabox {
 			'wpfa_event_exhibitors_box',
 			__( 'Event Exhibitors', 'wpfaevent' ),
 			array( $this, 'render_event_exhibitors_meta_box' ),
+			'wpfa_event',
+			'normal',
+			'default'
+		);
+
+		// Additional information meta box (venue, transportation, hotel).
+		add_meta_box(
+			'wpfa_event_additional_information_box',
+			__( 'Additional Information', 'wpfaevent' ),
+			array( $this, 'render_event_additional_information_meta_box' ),
 			'wpfa_event',
 			'normal',
 			'default'
@@ -314,6 +334,88 @@ class Wpfaevent_Admin_Event_Metabox {
 			});
 		}());
 		</script>
+		<?php
+	}
+
+	/**
+	 * Render Event Colors meta box.
+	 *
+	 * @since 1.0.0
+	 * @param WP_Post $post The post object.
+	 * @return void
+	 */
+	public function render_event_colors_meta_box( $post ) {
+		$colors = class_exists( 'Wpfaevent_Meta_Event' )
+			? Wpfaevent_Meta_Event::get_event_colors( $post->ID )
+			: array();
+
+		$color_configs = array(
+			'wpfa_event_primary_color'          => array(
+				'label'       => __( 'Primary Color', 'wpfaevent' ),
+				'fallback'    => '#D51007',
+				'description' => __( 'Main theme color used for the hero section, primary buttons, links, and accents.', 'wpfaevent' ),
+			),
+			'wpfa_event_hover_button_color'     => array(
+				'label'       => __( 'Button Hover Color', 'wpfaevent' ),
+				'fallback'    => '#b20d06',
+				'description' => __( 'Color used for button hover states and darker accents.', 'wpfaevent' ),
+			),
+			'wpfa_event_theme_background_color' => array(
+				'label'       => __( 'Background Color', 'wpfaevent' ),
+				'fallback'    => '#f4f7fb',
+				'description' => __( 'Page background color used behind event content, schedule, and ticket sections.', 'wpfaevent' ),
+			),
+			'wpfa_event_theme_success_color'    => array(
+				'label'       => __( 'Success Color', 'wpfaevent' ),
+				'fallback'    => '#2f8f5b',
+				'description' => __( 'Accent color used for positive status badges, accepted submissions, and confirmed states (CSS: --event-success).', 'wpfaevent' ),
+			),
+			'wpfa_event_theme_danger_color'     => array(
+				'label'       => __( 'Danger Color', 'wpfaevent' ),
+				'fallback'    => '#D51007',
+				'description' => __( 'Accent color used for alerts, sold-out notices, remove tags, and critical indicators (CSS: --event-danger).', 'wpfaevent' ),
+			),
+		);
+		?>
+		<table class="form-table">
+			<?php foreach ( $color_configs as $meta_key => $config ) : ?>
+				<?php
+				$val         = isset( $colors[ $meta_key ] ) ? $colors[ $meta_key ] : '';
+				$preview_hex = class_exists( 'Wpfaevent_Meta_Event' )
+					? Wpfaevent_Meta_Event::normalize_color_to_hex( $val, $config['fallback'] )
+					: $config['fallback'];
+				?>
+				<tr>
+					<th scope="row">
+						<label for="<?php echo esc_attr( $meta_key ); ?>"><?php echo esc_html( $config['label'] ); ?></label>
+					</th>
+					<td>
+						<div class="wpfaevent-color-field-group">
+							<input type="color"
+								class="wpfaevent-color-picker-input"
+								data-target="<?php echo esc_attr( $meta_key ); ?>"
+								value="<?php echo esc_attr( $preview_hex ); ?>">
+							<input type="text"
+								id="<?php echo esc_attr( $meta_key ); ?>"
+								name="<?php echo esc_attr( $meta_key ); ?>"
+								value="<?php echo esc_attr( $val ); ?>"
+								class="regular-text wpfaevent-color-text-input"
+								placeholder="<?php echo esc_attr( $config['fallback'] ); ?>">
+						</div>
+						<p class="description">
+							<?php echo esc_html( $config['description'] ); ?>
+							<?php
+							printf(
+								/* translators: %s: fallback hex color */
+								esc_html__( 'Fallback: %s', 'wpfaevent' ),
+								'<code>' . esc_html( $config['fallback'] ) . '</code>'
+							);
+							?>
+						</p>
+					</td>
+				</tr>
+			<?php endforeach; ?>
+		</table>
 		<?php
 	}
 
@@ -713,6 +815,44 @@ class Wpfaevent_Admin_Event_Metabox {
 	}
 
 	/**
+	 * Render the Additional Information meta box (venue, transportation, hotel).
+	 *
+	 * @since 1.0.0
+	 * @param WP_Post $post The post object.
+	 */
+	public function render_event_additional_information_meta_box( $post ): void {
+		$venue_information          = get_post_meta( $post->ID, 'wpfa_event_venue_information', true );
+		$transportation_information = get_post_meta( $post->ID, 'wpfa_event_transportation_information', true );
+		$hotel_information          = get_post_meta( $post->ID, 'wpfa_event_hotel_information', true );
+
+		$venue_information          = is_string( $venue_information ) ? $venue_information : '';
+		$transportation_information = is_string( $transportation_information ) ? $transportation_information : '';
+		$hotel_information          = is_string( $hotel_information ) ? $hotel_information : '';
+
+		$editor_settings = array(
+			'textarea_rows' => 6,
+			'media_buttons' => false,
+		);
+		?>
+		<p class="description"><?php esc_html_e( 'Manually curated attendee information shown on the event page and the Additional Information page.', 'wpfaevent' ); ?></p>
+		<p class="wpfaevent-additional-info-field-label">
+			<label for="wpfa_event_venue_information"><strong><?php esc_html_e( 'Venue Information', 'wpfaevent' ); ?></strong></label>
+		</p>
+		<?php wp_editor( $venue_information, 'wpfa_event_venue_information', $editor_settings ); ?>
+
+		<p class="wpfaevent-additional-info-field-label">
+			<label for="wpfa_event_transportation_information"><strong><?php esc_html_e( 'Transportation Information', 'wpfaevent' ); ?></strong></label>
+		</p>
+		<?php wp_editor( $transportation_information, 'wpfa_event_transportation_information', $editor_settings ); ?>
+
+		<p class="wpfaevent-additional-info-field-label">
+			<label for="wpfa_event_hotel_information"><strong><?php esc_html_e( 'Hotel & Accommodation Information', 'wpfaevent' ); ?></strong></label>
+		</p>
+		<?php wp_editor( $hotel_information, 'wpfa_event_hotel_information', $editor_settings ); ?>
+		<?php
+	}
+
+	/**
 	 * Save Event meta box data.
 	 *
 	 * @since 1.0.0
@@ -809,6 +949,40 @@ class Wpfaevent_Admin_Event_Metabox {
 				}
 
 				update_post_meta( $post_id, $field, $value );
+			}
+		}
+
+		$color_fields = class_exists( 'Wpfaevent_Meta_Event' )
+			? array_keys( Wpfaevent_Meta_Event::get_event_color_meta_fields() )
+			: array(
+				'wpfa_event_primary_color',
+				'wpfa_event_hover_button_color',
+				'wpfa_event_theme_background_color',
+				'wpfa_event_theme_success_color',
+				'wpfa_event_theme_danger_color',
+			);
+
+		foreach ( $color_fields as $color_field ) {
+			if ( isset( $_POST[ $color_field ] ) ) {
+				$raw_color = sanitize_text_field( wp_unslash( $_POST[ $color_field ] ) );
+				$color     = class_exists( 'Wpfaevent_Meta_Event' )
+					? Wpfaevent_Meta_Event::sanitize_color_value( $raw_color )
+					: $raw_color;
+
+				$this->update_or_delete_post_meta( $post_id, $color_field, $color );
+			}
+		}
+
+		$rich_text_fields = array(
+			'wpfa_event_venue_information',
+			'wpfa_event_transportation_information',
+			'wpfa_event_hotel_information',
+		);
+
+		foreach ( $rich_text_fields as $field ) {
+			if ( isset( $_POST[ $field ] ) && is_string( $_POST[ $field ] ) ) {
+				$value = wp_kses_post( wp_unslash( $_POST[ $field ] ) );
+				$this->update_or_delete_post_meta( $post_id, $field, $value );
 			}
 		}
 
